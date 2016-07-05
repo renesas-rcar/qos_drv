@@ -150,6 +150,22 @@ static struct miscdevice qos_miscdev = {
 	.fops  = &qos_fops,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int qos_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int qos_pm_resume(struct device *dev)
+{
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops qos_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(qos_pm_suspend, qos_pm_resume)
+};
+
 static int qos_probe(struct platform_device *pdev)
 {
 	if (g_qos_pdev != NULL)
@@ -175,6 +191,7 @@ static struct platform_driver qos_driver = {
 		.name = QOS_DEVICE_NAME "_drv",
 		.owner = THIS_MODULE,
 		.of_match_table = qos_of_match,
+		.pm	= &qos_pm_ops,
 	},
 	.probe = qos_probe,
 	.remove = qos_remove,
