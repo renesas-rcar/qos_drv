@@ -64,6 +64,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -85,11 +86,12 @@ static int qos_switch_membank(unsigned long arg);
 
 typedef int (*qos_ioctl_t)(unsigned long);
 
+static struct platform_device *g_qos_pdev;
+
 static const qos_ioctl_t qos_ioctls[QOS_IOCTL_MAX_NR] = {
 	[_IOC_NR(QOS_IOCTL_SET_ALL_QOS)] = qos_set_all_qos,
 	[_IOC_NR(QOS_IOCTL_SWITCH_MEMBANK)] = qos_switch_membank,
 };
-
 
 static int qos_open(struct inode *inode, struct file *filp)
 {
@@ -148,6 +150,35 @@ static struct miscdevice qos_miscdev = {
 	.fops  = &qos_fops,
 };
 
+static int qos_probe(struct platform_device *pdev)
+{
+	if (g_qos_pdev != NULL)
+		return -1;
+
+	g_qos_pdev = pdev;
+	return 0;
+}
+
+static int qos_remove(struct platform_device *pdev)
+{
+	g_qos_pdev = NULL;
+	return 0;
+}
+
+static const struct of_device_id qos_of_match[] = {
+	{ .compatible = "renesas,qos" },
+	{ },
+};
+
+static struct platform_driver qos_driver = {
+	.driver = {
+		.name = QOS_DEVICE_NAME "_drv",
+		.owner = THIS_MODULE,
+		.of_match_table = qos_of_match,
+	},
+	.probe = qos_probe,
+	.remove = qos_remove,
+};
 
 static int __init qos_init(void)
 {
@@ -161,6 +192,13 @@ static int __init qos_init(void)
 	if (ret) {
 		pr_err("failed to rcar_qos_init()\n");
 		return ret;
+	}
+
+	platform_driver_register(&qos_driver);
+	if (g_qos_pdev == NULL) {
+		platform_driver_unregister(&qos_driver);
+		pr_err("failed to platform_driver_register\n");
+		return -ENOSYS;
 	}
 
 	ret = misc_register(&qos_miscdev);
@@ -181,6 +219,8 @@ static void __exit qos_exit(void)
 	QOS_DBG("begin");
 
 	misc_deregister(&qos_miscdev);
+
+	platform_driver_unregister(&qos_driver);
 
 	rcar_qos_exit();
 
