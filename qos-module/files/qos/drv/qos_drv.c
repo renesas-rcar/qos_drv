@@ -153,11 +153,13 @@ static struct miscdevice qos_miscdev = {
 #ifdef CONFIG_PM_SLEEP
 static int qos_pm_suspend(struct device *dev)
 {
+	rcar_qos_suspend();
 	return 0;
 }
 
 static int qos_pm_resume(struct device *dev)
 {
+	rcar_qos_resume();
 	return 0;
 }
 #endif
