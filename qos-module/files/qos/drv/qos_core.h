@@ -1,7 +1,7 @@
 /*************************************************************************/ /*
  qos_core.h
 
- Copyright (C) 2015 Renesas Electronics Corporation
+ Copyright (C) 2015-2016 Renesas Electronics Corporation
 
  License        Dual MIT/GPLv2
 
