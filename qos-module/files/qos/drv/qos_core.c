@@ -468,7 +468,7 @@ void rcar_qos_resume(void)
 	__u32 qos_fix_offset = 0x00000000;
 	__u32 qos_be_offset = 0x00000000;
 	__u32 value = 0x00000000;
-	int timeout = WAIT_RETRY_COUNT_M3_W;
+	int timeout;
 	int ret = 0;
 
 	exe_membank = 0;
@@ -494,6 +494,7 @@ void rcar_qos_resume(void)
 		usleep_range(WAIT_SWITCH_BANK_US_MIN_H3,
 			WAIT_SWITCH_BANK_US_MAX_H3);
 	} else {
+		timeout = WAIT_RETRY_COUNT_M3_W;
 		while (timeout--) {
 			memory_bank = READ_REG32(va_qos_memory_bank);
 			if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
@@ -534,6 +535,7 @@ void rcar_qos_resume(void)
 			usleep_range(WAIT_SWITCH_BANK_US_MIN_H3,
 				WAIT_SWITCH_BANK_US_MAX_H3);
 		} else {
+			timeout = WAIT_RETRY_COUNT_M3_W;
 			while (timeout--) {
 				memory_bank = READ_REG32(va_qos_memory_bank);
 				if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
