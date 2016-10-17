@@ -61,7 +61,7 @@
 #ifndef __QOS_CORE_H__
 #define __QOS_CORE_H__
 
-#include <qos.h>
+#include "qos.h"
 
 int rcar_qos_init(void);
 void rcar_qos_exit(void);
