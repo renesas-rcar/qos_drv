@@ -197,10 +197,27 @@ int rcar_qos_init(void)
 		"Succeeded to get device model[0x%08x],device version[0x%08x]",
 			device, device_version);
 
-		if (device == R_CAR_H3)
-			master_id_max = MASTER_ID_MAX_H3_ES1;
-		else if (device == R_CAR_M3_W)
-			master_id_max = MASTER_ID_MAX_M3_W;
+		if (device == R_CAR_H3) {
+			switch (device_version) {
+			case ES10:
+			case ES11:
+				master_id_max = MASTER_ID_MAX_H3_ES1;
+				break;
+			case ES20:
+				master_id_max = MASTER_ID_MAX_H3_ES2;
+				break;
+			default:
+				break;
+			}
+		} else if (device == R_CAR_M3_W) {
+			switch (device_version) {
+			case ES10:
+				master_id_max = MASTER_ID_MAX_M3_W;
+				break;
+			default:
+				break;
+			}
+		}
 
 		QOS_DBG("Number of master id[%u]", master_id_max);
 

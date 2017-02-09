@@ -77,6 +77,7 @@
 #define EXE_MEMBANK_MASK		(0x00000100)
 
 #define MASTER_ID_MAX_H3_ES1		103
+#define MASTER_ID_MAX_H3_ES2		109
 #define MASTER_ID_MAX_M3_W		 99
 #define MASTER_ID_MAX			511
 
@@ -90,8 +91,9 @@
 #define R_CAR_H3			(0x00004F00)
 #define R_CAR_M3_W			(0x00005200)
 
-#define ES1				(0x00000000)
-#define ES2				(0x00000010)
-#define ES3				(0x00000020)
+#define ES10				(0x00000000)
+#define ES11				(0x00000001)
+#define ES20				(0x00000010)
+#define ES30				(0x00000020)
 
 #endif /* __QOS_REG_H__ */
