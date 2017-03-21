@@ -108,16 +108,20 @@ static __u32 device, device_version;
 static __u32 master_id_max = 0;
 static int init;
 static __u8 exe_membank_bk;
+static bool support_exe_membank = true;
 
 static __u8 fix_qos_buf[QOS_FIX_BANK_SIZE] = {};
 static __u8 be_qos_buf[QOS_BE_BANK_SIZE] = {};
 
 static __u8 backup_bank[QOS_REG_SIZE];
 
-#define WAIT_SWITCH_BANK_US_MIN_H3	(100)
-#define WAIT_SWITCH_BANK_US_MAX_H3	(1000)
-#define WAIT_SWITCH_BANK_US_M3_W	(10)
-#define WAIT_RETRY_COUNT_M3_W		(5)
+#define WAIT_SWITCH_BANK_US_MIN	(100)
+#define WAIT_SWITCH_BANK_US_MAX	(1000)
+#define WAIT_SWITCH_BANK_US	(10)
+#define WAIT_RETRY_COUNT		(5)
+
+
+static int rcar_qos_wait_switching(__u32 value);
 
 int rcar_qos_init(void)
 {
@@ -202,6 +206,7 @@ int rcar_qos_init(void)
 			case ES10:
 			case ES11:
 				master_id_max = MASTER_ID_MAX_H3_ES1;
+				support_exe_membank = false;
 				break;
 			case ES20:
 				master_id_max = MASTER_ID_MAX_H3_ES2;
@@ -301,7 +306,7 @@ int rcar_qos_set_all_qos(struct qos_ioc_set_all_qos_param *param)
 
 	mutex_lock(&qos_mutex);
 
-	if (device == R_CAR_H3) {
+	if (!support_exe_membank) {
 		exe_membank = exe_membank_bk;
 	} else {
 		QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
@@ -344,7 +349,6 @@ int rcar_qos_switch_membank(void)
 	__u32 exe_membank;
 	__u32 value = 0x00000000;
 	int i;
-	int timeout = WAIT_RETRY_COUNT_M3_W;
 	int ret = 0;
 
 	QOS_DBG("begin");
@@ -355,7 +359,7 @@ int rcar_qos_switch_membank(void)
 	QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
 					va_qos_memory_bank, memory_bank);
 
-	if (device == R_CAR_H3) {
+	if (!support_exe_membank) {
 		exe_membank = exe_membank_bk;
 	} else {
 		exe_membank = (memory_bank & EXE_MEMBANK_MASK) >> 8;
@@ -378,29 +382,9 @@ int rcar_qos_switch_membank(void)
 	value |= memory_bank & 0xFFFFFFFE;
 	value |= (exe_membank ^ 0x00000001) & 0x00000001;
 
-	QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
-						va_qos_memory_bank, value);
-	WRITE_REG32(value, va_qos_memory_bank);
-
-	if (device == R_CAR_H3) {
-		usleep_range(WAIT_SWITCH_BANK_US_MIN_H3,
-			WAIT_SWITCH_BANK_US_MAX_H3);
-	} else {
-		while (timeout--) {
-			memory_bank = READ_REG32(va_qos_memory_bank);
-			if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
-						== (memory_bank & 0x00000001)) {
-				break;
-			}
-			udelay(WAIT_SWITCH_BANK_US_M3_W);
-		}
-
-		if (timeout <= 0) {
-			ret = -ETIMEDOUT;
-			pr_err("rcar_qos_switch_membank: timeout switch membank[errno=%d]",
-				ret);
-			goto err_i1;
-		}
+	if (rcar_qos_wait_switching(value)) {
+		ret = -ETIMEDOUT;
+		goto err_i1;
 	}
 
 	exe_membank_bk = (exe_membank ^ 0x00000001) & 0x00000001;
@@ -491,13 +475,10 @@ static void qos_sram_reload(__u32 qos_fix_offset,__u32 qos_be_offset)
 
 void rcar_qos_resume(void)
 {
-	__u32 memory_bank;
 	__u32 exe_membank;
 	__u32 qos_fix_offset = 0x00000000;
 	__u32 qos_be_offset = 0x00000000;
 	__u32 value = 0x00000000;
-	int timeout;
-	int ret = 0;
 
 	exe_membank = 0;
 	qos_fix_offset |= (QOS_TYPE_FIX << 13) & 0x0000E000;
@@ -514,30 +495,7 @@ void rcar_qos_resume(void)
 	value = exe_membank & 0xFFFFFFFE;
 	value |= (exe_membank ^ 0x00000001) & 0x00000001;
 
-	QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]\n",
-						va_qos_memory_bank, value);
-	WRITE_REG32(value, va_qos_memory_bank);
-
-	if (device == R_CAR_H3) {
-		usleep_range(WAIT_SWITCH_BANK_US_MIN_H3,
-			WAIT_SWITCH_BANK_US_MAX_H3);
-	} else {
-		timeout = WAIT_RETRY_COUNT_M3_W;
-		while (timeout--) {
-			memory_bank = READ_REG32(va_qos_memory_bank);
-			if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
-						== (memory_bank & 0x00000001)) {
-				break;
-			}
-			udelay(WAIT_SWITCH_BANK_US_M3_W);
-		}
-
-		if (timeout <= 0) {
-			ret = -ETIMEDOUT;
-			pr_err("rcar_qos_switch_membank: timeout switch membank[errno=%d]\n",
-				ret);
-		}
-	}
+	rcar_qos_wait_switching(value);
 
 	qos_fix_offset = 0x00000000;
 	qos_fix_offset |= (QOS_TYPE_FIX << 13) & 0x0000E000;
@@ -554,32 +512,42 @@ void rcar_qos_resume(void)
 
 	if( exe_membank_bk == 0 ){
 		value = exe_membank_bk;
-
-		QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]\n",
-							va_qos_memory_bank, value);
-		WRITE_REG32(value, va_qos_memory_bank);
-
-		if (device == R_CAR_H3) {
-			usleep_range(WAIT_SWITCH_BANK_US_MIN_H3,
-				WAIT_SWITCH_BANK_US_MAX_H3);
-		} else {
-			timeout = WAIT_RETRY_COUNT_M3_W;
-			while (timeout--) {
-				memory_bank = READ_REG32(va_qos_memory_bank);
-				if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
-							== (memory_bank & 0x00000001)) {
-					break;
-				}
-				udelay(WAIT_SWITCH_BANK_US_M3_W);
-			}
-
-			if (timeout <= 0) {
-				ret = -ETIMEDOUT;
-				pr_err("rcar_qos_switch_membank: timeout switch membank[errno=%d]\n",
-					ret);
-			}
-		}
+		rcar_qos_wait_switching(value);
 	}
 
 	return;
+}
+
+static int rcar_qos_wait_switching(__u32 value)
+{
+	int ret = 0;
+
+	QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]\n",
+						va_qos_memory_bank, value);
+	WRITE_REG32(value, va_qos_memory_bank);
+
+	if (!support_exe_membank) {
+		usleep_range(WAIT_SWITCH_BANK_US_MIN,
+			WAIT_SWITCH_BANK_US_MAX);
+	} else {
+		int timeout = WAIT_RETRY_COUNT;
+		__u32 memory_bank;
+
+		while (timeout--) {
+			memory_bank = READ_REG32(va_qos_memory_bank);
+			if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
+						== (memory_bank & 0x00000001)) {
+				break;
+			}
+			udelay(WAIT_SWITCH_BANK_US);
+		}
+
+		if (timeout <= 0) {
+			ret = -ETIMEDOUT;
+			pr_err("rcar_qos_switch_membank: timeout switch membank[errno=%d]\n",
+				ret);
+		}
+	}
+
+	return ret;
 }
