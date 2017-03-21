@@ -105,7 +105,7 @@ static void __iomem *va_qos_memory_bank;
 static DEFINE_MUTEX(qos_mutex);
 
 static __u32 device, device_version;
-static __u32 master_id_max = MASTER_ID_MAX;
+static __u32 master_id_max = 0;
 static int init;
 static __u8 exe_membank_bk;
 
@@ -220,6 +220,14 @@ int rcar_qos_init(void)
 			}
 		}
 
+		if (master_id_max == 0) {
+			device = 0;
+			device_version = 0;
+			pr_err("rcar_qos_init: not support chip\n");
+			ret = -ENOMEM;
+			goto err_i9;
+		}
+
 		QOS_DBG("Number of master id[%u]", master_id_max);
 
 		release_mem_region(PRR_REG_BASE, PRR_REG_SIZE);
@@ -234,6 +242,8 @@ int rcar_qos_init(void)
 
 	return ret;
 
+err_i9:
+	iounmap(prr_reg_base);
 err_i8:
 	release_mem_region(PRR_REG_BASE, PRR_REG_SIZE);
 err_i7:
