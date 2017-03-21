@@ -217,7 +217,7 @@ static int __init qos_init(void)
 	if (g_qos_pdev == NULL) {
 		platform_driver_unregister(&qos_driver);
 		pr_err("failed to platform_driver_register\n");
-		return -ENOSYS;
+		return -EINVAL;
 	}
 
 	ret = misc_register(&qos_miscdev);

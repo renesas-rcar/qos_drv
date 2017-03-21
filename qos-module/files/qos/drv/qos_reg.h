@@ -61,39 +61,39 @@
 #ifndef __QOS_REG_H__
 #define __QOS_REG_H__
 
-#define QOS_REG_BASE			(0xE67E0000)
-#define QOS_REG_SIZE			(0x00004000)
-#define QOS_BANK_SIZE			(0x00000008)
-#define QOS_FIX_BANK_SIZE		(0x00001000)
-#define QOS_BE_BANK_SIZE		(0x00001000)
+#define QOS_REG_BASE			(0xE67E0000U)
+#define QOS_REG_SIZE			(0x00004000U)
+#define QOS_BANK_SIZE			(0x00000008U)
+#define QOS_FIX_BANK_SIZE		(0x00001000U)
+#define QOS_BE_BANK_SIZE		(0x00001000U)
 
-#define QOS_FIX_0			(0x00000000)
-#define QOS_FIX_1			(0x00001000)
-#define QOS_BE_0			(0x00002000)
-#define QOS_BE_1			(0x00003000)
-#define QOS_MEMORY_BANK			(0x0000800C)
+#define QOS_FIX_0			(0x00000000U)
+#define QOS_FIX_1			(0x00001000U)
+#define QOS_BE_0			(0x00002000U)
+#define QOS_BE_1			(0x00003000U)
+#define QOS_MEMORY_BANK			(0x0000800CU)
 
-#define STATQEN_MASK			(0x00000001)
-#define EXE_MEMBANK_MASK		(0x00000100)
+#define STATQEN_MASK			(0x00000001U)
+#define EXE_MEMBANK_MASK		(0x00000100U)
 
 #define MASTER_ID_MAX_H3_ES1		103
 #define MASTER_ID_MAX_H3_ES2		109
 #define MASTER_ID_MAX_M3_W		 99
 #define MASTER_ID_MAX			511
 
-#define PRR_REG_BASE			(0xFFF00000)
-#define PRR_REG_SIZE			(0x00000048)
-#define PRR				(0x00000044)
+#define PRR_REG_BASE			(0xFFF00000U)
+#define PRR_REG_SIZE			(0x00000048U)
+#define PRR				(0x00000044U)
 
-#define PRODUCT_ID_NUMBER_MASK		(0x00007F00)
-#define CUT_NUMBER_MASK			(0x000000FF)
+#define PRODUCT_ID_NUMBER_MASK		(0x00007F00U)
+#define CUT_NUMBER_MASK			(0x000000FFU)
 
-#define R_CAR_H3			(0x00004F00)
-#define R_CAR_M3_W			(0x00005200)
+#define R_CAR_H3			(0x00004F00U)
+#define R_CAR_M3_W			(0x00005200U)
 
-#define ES10				(0x00000000)
-#define ES11				(0x00000001)
-#define ES20				(0x00000010)
-#define ES30				(0x00000020)
+#define ES10				(0x00000000U)
+#define ES11				(0x00000001U)
+#define ES20				(0x00000010U)
+#define ES30				(0x00000020U)
 
 #endif /* __QOS_REG_H__ */

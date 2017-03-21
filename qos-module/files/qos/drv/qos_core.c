@@ -98,14 +98,15 @@
 #define WRITE_REG32(value, address)	writel(value, address)
 #define WRITE_REG64(value, address)	writeq(value, address)
 
+#define QOS_BANK_OFF(__index) (QOS_BANK_SIZE * (__index))
+
 static void __iomem *qos_reg_base;
 static void __iomem *va_qos_memory_bank;
-
 
 static DEFINE_MUTEX(qos_mutex);
 
 static __u32 device, device_version;
-static __u32 master_id_max = 0;
+static int master_id_max;
 static int init;
 static __u8 exe_membank_bk;
 static bool support_exe_membank = true;
@@ -121,6 +122,8 @@ static __u8 backup_bank[QOS_REG_SIZE];
 #define WAIT_RETRY_COUNT		(5)
 
 
+static inline void qos_reg_load(void *src, __u32 offset, int index);
+static inline void qos_reg_store(void *dst, __u32 offset, int index);
 static int rcar_qos_wait_switching(__u32 value);
 
 int rcar_qos_init(void)
@@ -129,6 +132,7 @@ int rcar_qos_init(void)
 
 	int ret = 0;
 
+	__u32 prr;
 	void __iomem *prr_reg_base;
 
 	QOS_DBG("begin");
@@ -188,14 +192,14 @@ int rcar_qos_init(void)
 			goto err_i8;
 		}
 
+		prr = READ_REG32(prr_reg_base + PRR);
+
 		QOS_DBG("Succeeded to map prr_reg_base[%p]", prr_reg_base);
 
 		QOS_DBG("Read Reg[prr_reg_base + PRR][%p], value[0x%08x]",
-			prr_reg_base + PRR, READ_REG32(prr_reg_base + PRR));
-		device =
-		READ_REG32(prr_reg_base + PRR) & PRODUCT_ID_NUMBER_MASK;
-		device_version =
-		READ_REG32(prr_reg_base + PRR) & CUT_NUMBER_MASK;
+			prr_reg_base + PRR, prr);
+		device = prr & PRODUCT_ID_NUMBER_MASK;
+		device_version = prr & CUT_NUMBER_MASK;
 
 		QOS_DBG(
 		"Succeeded to get device model[0x%08x],device version[0x%08x]",
@@ -278,6 +282,7 @@ void rcar_qos_exit(void)
 
 		device = 0;
 		device_version = 0;
+		master_id_max = 0;
 
 		iounmap(va_qos_memory_bank);
 		release_mem_region(QOS_REG_BASE + QOS_MEMORY_BANK,
@@ -327,12 +332,10 @@ int rcar_qos_set_all_qos(struct qos_ioc_set_all_qos_param *param)
 	QOS_DBG("QoS BE  Offset[0x%08x]", qos_be_offset);
 
 	for (i = 0; i < master_id_max + 1; i++)
-		WRITE_REG64(*((__u64 *)(param->fix_qos + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_fix_offset + (QOS_BANK_SIZE * i));
+		qos_reg_load(param->fix_qos, qos_fix_offset, i);
 
 	for (i = 0; i < master_id_max + 1; i++)
-		WRITE_REG64(*((__u64 *)(param->be_qos + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_be_offset + (QOS_BANK_SIZE * i));
+		qos_reg_load(param->be_qos, qos_be_offset, i);
 
 	mutex_unlock(&qos_mutex);
 
@@ -359,11 +362,10 @@ int rcar_qos_switch_membank(void)
 	QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
 					va_qos_memory_bank, memory_bank);
 
-	if (!support_exe_membank) {
+	if (!support_exe_membank)
 		exe_membank = exe_membank_bk;
-	} else {
+	else
 		exe_membank = (memory_bank & EXE_MEMBANK_MASK) >> 8;
-	}
 
 	qos_fix_offset |= (QOS_TYPE_FIX << 13) & 0x0000E000;
 	qos_fix_offset |= ((exe_membank ^ 0x00000001) << 12) & 0x00001000;
@@ -372,12 +374,10 @@ int rcar_qos_switch_membank(void)
 	qos_be_offset |= ((exe_membank ^ 0x00000001) << 12) & 0x00001000;
 
 	for (i = 0; i < master_id_max + 1; i++)
-		*((__u64 *)(fix_qos_buf + (QOS_BANK_SIZE * i))) =
-	READ_REG64(qos_reg_base + qos_fix_offset + (QOS_BANK_SIZE * i));
+		qos_reg_store(fix_qos_buf, qos_fix_offset, i);
 
 	for (i = 0; i < master_id_max + 1; i++)
-		*((__u64 *)(be_qos_buf + (QOS_BANK_SIZE * i))) =
-	READ_REG64(qos_reg_base + qos_be_offset + (QOS_BANK_SIZE * i));
+		qos_reg_store(be_qos_buf, qos_be_offset, i);
 
 	value |= memory_bank & 0xFFFFFFFE;
 	value |= (exe_membank ^ 0x00000001) & 0x00000001;
@@ -398,12 +398,10 @@ int rcar_qos_switch_membank(void)
 	qos_be_offset |= (exe_membank << 12) & 0x00001000;
 
 	for (i = 0; i < master_id_max + 1; i++)
-		WRITE_REG64(*((__u64 *)(fix_qos_buf + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_fix_offset + (QOS_BANK_SIZE * i));
+		qos_reg_load(fix_qos_buf, qos_fix_offset, i);
 
 	for (i = 0; i < master_id_max + 1; i++)
-		WRITE_REG64(*((__u64 *)(be_qos_buf + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_be_offset + (QOS_BANK_SIZE * i));
+		qos_reg_load(be_qos_buf, qos_be_offset, i);
 
 err_i1:
 	mutex_unlock(&qos_mutex);
@@ -413,19 +411,15 @@ err_i1:
 	return ret;
 }
 
-static void qos_sram_backup(__u32 qos_fix_offset,__u32 qos_be_offset)
+static void qos_sram_backup(__u32 qos_fix_offset, __u32 qos_be_offset)
 {
 	int i;
 
 	for (i = 0; i < master_id_max + 1; i++)
-		*((__u64 *)(backup_bank + qos_fix_offset + (QOS_BANK_SIZE * i))) =
-	READ_REG64(qos_reg_base + qos_fix_offset + (QOS_BANK_SIZE * i));
+		qos_reg_store(backup_bank + qos_fix_offset, qos_fix_offset, i);
 
 	for (i = 0; i < master_id_max + 1; i++)
-		*((__u64 *)(backup_bank + qos_be_offset + (QOS_BANK_SIZE * i))) =
-	READ_REG64(qos_reg_base + qos_be_offset + (QOS_BANK_SIZE * i));
-
-	return;
+		qos_reg_store(backup_bank + qos_be_offset, qos_be_offset, i);
 }
 
 void rcar_qos_suspend(void)
@@ -442,7 +436,7 @@ void rcar_qos_suspend(void)
 	qos_be_offset |= (QOS_TYPE_BE << 13) & 0x0000E000;
 	qos_be_offset |= (exe_membank << 12) & 0x00001000;
 
-	qos_sram_backup(qos_fix_offset,qos_be_offset);
+	qos_sram_backup(qos_fix_offset, qos_be_offset);
 
 	qos_fix_offset = 0x00000000;
 	qos_fix_offset |= (QOS_TYPE_FIX << 13) & 0x0000E000;
@@ -451,26 +445,18 @@ void rcar_qos_suspend(void)
 	qos_be_offset |= (QOS_TYPE_BE << 13) & 0x0000E000;
 	qos_be_offset |= ((exe_membank ^ 0x00000001) << 12) & 0x00001000;
 
-	qos_sram_backup(qos_fix_offset,qos_be_offset);
-
-	return;
+	qos_sram_backup(qos_fix_offset, qos_be_offset);
 }
 
-static void qos_sram_reload(__u32 qos_fix_offset,__u32 qos_be_offset)
+static void qos_sram_reload(__u32 qos_fix_offset, __u32 qos_be_offset)
 {
 	int i;
 
-	for (i = 0; i < master_id_max + 1; i++) {
-		WRITE_REG64(*((__u64 *)(backup_bank + qos_fix_offset + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_fix_offset + (QOS_BANK_SIZE * i));
-	}
+	for (i = 0; i < master_id_max + 1; i++)
+		qos_reg_load(backup_bank + qos_fix_offset, qos_fix_offset, i);
 
-	for (i = 0; i < master_id_max + 1; i++) {
-		WRITE_REG64(*((__u64 *)(backup_bank + qos_be_offset + (QOS_BANK_SIZE * i))),
-			qos_reg_base + qos_be_offset + (QOS_BANK_SIZE * i));
-	}
-
-	return;
+	for (i = 0; i < master_id_max + 1; i++)
+		qos_reg_load(backup_bank + qos_be_offset, qos_be_offset, i);
 }
 
 void rcar_qos_resume(void)
@@ -490,7 +476,7 @@ void rcar_qos_resume(void)
 	QOS_DBG("QoS Fix Offset[0x%08x]\n", qos_fix_offset);
 	QOS_DBG("QoS BE  Offset[0x%08x]\n", qos_be_offset);
 
-	qos_sram_reload(qos_fix_offset,qos_be_offset);
+	qos_sram_reload(qos_fix_offset, qos_be_offset);
 
 	value = exe_membank & 0xFFFFFFFE;
 	value |= (exe_membank ^ 0x00000001) & 0x00000001;
@@ -508,14 +494,24 @@ void rcar_qos_resume(void)
 	QOS_DBG("QoS Fix Offset[0x%08x]\n", qos_fix_offset);
 	QOS_DBG("QoS BE  Offset[0x%08x]\n", qos_be_offset);
 
-	qos_sram_reload(qos_fix_offset,qos_be_offset);
+	qos_sram_reload(qos_fix_offset, qos_be_offset);
 
-	if( exe_membank_bk == 0 ){
+	if (exe_membank_bk == 0) {
 		value = exe_membank_bk;
 		rcar_qos_wait_switching(value);
 	}
+}
 
-	return;
+static inline void qos_reg_load(void *src, __u32 offset, int index)
+{
+	WRITE_REG64(*((__u64 *)(src + QOS_BANK_OFF(index))),
+		qos_reg_base + offset + QOS_BANK_OFF(index));
+}
+
+static inline void qos_reg_store(void *dst, __u32 offset, int index)
+{
+	*((__u64 *)(dst + QOS_BANK_OFF(index))) =
+		READ_REG64(qos_reg_base + offset + QOS_BANK_OFF(index));
 }
 
 static int rcar_qos_wait_switching(__u32 value)
