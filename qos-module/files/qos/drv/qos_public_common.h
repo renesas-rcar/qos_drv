@@ -1,7 +1,7 @@
 /*************************************************************************
 * qos_public_common.h
 *
-* Copyright (C) 2015-2016 Renesas Electronics Corporation
+* Copyright (C) 2015-2017 Renesas Electronics Corporation
 *
 * License        Dual MIT/GPLv2
 *
@@ -65,7 +65,7 @@
 #include <asm/ioctl.h>
 
 #define QOS_DEVICE_NAME		"qos"
-#define QOS_VERSION		"2.00"
+#define QOS_VERSION		"2.01"
 
 enum {
 	QOS_TYPE_FIX = 0,
