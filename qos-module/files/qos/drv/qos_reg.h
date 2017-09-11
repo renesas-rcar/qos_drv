@@ -79,6 +79,7 @@
 #define MASTER_ID_MAX_H3_ES1		103
 #define MASTER_ID_MAX_H3_ES2		109
 #define MASTER_ID_MAX_M3_W		 99
+#define MASTER_ID_MAX_D3		114
 #define MASTER_ID_MAX			511
 
 #define PRR_REG_BASE			(0xFFF00000U)
@@ -90,6 +91,7 @@
 
 #define R_CAR_H3			(0x00004F00U)
 #define R_CAR_M3_W			(0x00005200U)
+#define R_CAR_D3			(0x00005800U)
 
 #define ES10				(0x00000000U)
 #define ES11				(0x00000001U)
