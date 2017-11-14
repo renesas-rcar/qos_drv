@@ -141,23 +141,23 @@ int rcar_qos_init(void)
 
 	if (!init) {
 		if (!request_mem_region(
-			QOS_REG_BASE, QOS_REG_SIZE, QOS_DEVICE_NAME)) {
-			pr_err("rcar_qos_init: request_mem_region[QOS_REG_BASE] error");
+			QOS_BASE0, QOS_REG_SIZE, QOS_DEVICE_NAME)) {
+			pr_err("rcar_qos_init: request_mem_region[QOS_BASE0] error");
 			ret = -ENOMEM;
 			goto err_i1;
 		}
 
-		qos_reg_base = ioremap_nocache(QOS_REG_BASE, QOS_REG_SIZE);
+		qos_reg_base = ioremap_nocache(QOS_BASE0, QOS_REG_SIZE);
 
 		if (qos_reg_base == NULL) {
-			pr_err("rcar_qos_init: ioremap_nocache[QOS_REG_BASE] error");
+			pr_err("rcar_qos_init: ioremap_nocache[QOS_BASE0] error");
 			ret = -ENOMEM;
 			goto err_i2;
 		}
 
 		QOS_DBG("Succeeded to map qos_reg_base[%p]", qos_reg_base);
 
-		pa_memory_bank = QOS_REG_BASE + QOS_MEMORY_BANK;
+		pa_memory_bank = QOSCTRL_MEMBANK;
 		if (!request_mem_region(pa_memory_bank, sizeof(__u32),
 							QOS_DEVICE_NAME)) {
 			pr_err("rcar_qos_init: request_mem_region[MEMORY_BANK] error");
@@ -213,26 +213,30 @@ int rcar_qos_init(void)
 				support_exe_membank = false;
 				break;
 			case ES20:
-				master_id_max = MASTER_ID_MAX_H3_ES2;
-				break;
 			default:
+				master_id_max = MASTER_ID_MAX_H3_ES2;
 				break;
 			}
 		} else if (device == R_CAR_M3_W) {
 			switch (device_version) {
 			case ES10:
 			case ES20: /* Ver1.1 */
+			default:
 				master_id_max = MASTER_ID_MAX_M3_W;
 				break;
+			}
+		} else if (device == R_CAR_M3_N) {
+			switch (device_version) {
+			case ES10:
 			default:
+				master_id_max = MASTER_ID_MAX_M3_N;
 				break;
 			}
 		} else if (device == R_CAR_D3) {
 			switch (device_version) {
 			case ES10:
-				master_id_max = MASTER_ID_MAX_D3;
-				break;
 			default:
+				master_id_max = MASTER_ID_MAX_D3;
 				break;
 			}
 		}
@@ -270,7 +274,7 @@ err_i6:
 err_i5:
 	iounmap(qos_reg_base);
 err_i2:
-	release_mem_region(QOS_REG_BASE, QOS_REG_SIZE);
+	release_mem_region(QOS_BASE0, QOS_REG_SIZE);
 err_i1:
 	mutex_unlock(&qos_mutex);
 
@@ -293,11 +297,11 @@ void rcar_qos_exit(void)
 		master_id_max = 0;
 
 		iounmap(va_qos_memory_bank);
-		release_mem_region(QOS_REG_BASE + QOS_MEMORY_BANK,
+		release_mem_region(QOSCTRL_MEMBANK,
 					sizeof(__u32));
 		va_qos_memory_bank = NULL;
 		iounmap(qos_reg_base);
-		release_mem_region(QOS_REG_BASE, QOS_REG_SIZE);
+		release_mem_region(QOS_BASE0, QOS_REG_SIZE);
 		qos_reg_base = NULL;
 
 		init = 0;
