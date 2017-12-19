@@ -137,7 +137,7 @@ static int qos_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-const struct file_operations qos_fops = {
+static const struct file_operations qos_fops = {
 	.owner	  = THIS_MODULE,
 	.unlocked_ioctl = qos_unlocked_ioctl,
 	.open	   = qos_open,
@@ -191,7 +191,6 @@ static const struct of_device_id qos_of_match[] = {
 static struct platform_driver qos_driver = {
 	.driver = {
 		.name = QOS_DEVICE_NAME "_drv",
-		.owner = THIS_MODULE,
 		.of_match_table = qos_of_match,
 		.pm	= &qos_pm_ops,
 	},
@@ -304,10 +303,8 @@ static int qos_set_all_qos(unsigned long arg)
 	}
 
 err_i1:
-	if (param.fix_qos != NULL)
-		kfree(param.fix_qos);
-	if (param.be_qos != NULL)
-		kfree(param.be_qos);
+	kfree(param.fix_qos);
+	kfree(param.be_qos);
 
 	QOS_DBG("end");
 
