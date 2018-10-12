@@ -200,7 +200,7 @@ static struct platform_driver qos_driver = {
 
 static int __init qos_init(void)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	QOS_DBG("begin");
 
@@ -276,29 +276,29 @@ static int qos_set_all_qos(unsigned long arg)
 	}
 
 	if (copy_from_user(&tmp, (void __user *)arg, sizeof(tmp))) {
-		pr_err("QoS(qos_set_all_qos): copy param error\n");
+		pr_err("QoS(%s): copy param error\n", __func__);
 		ret = -EFAULT;
 		goto err_i1;
 	}
 
 	if (copy_from_user(param.fix_qos,
 		(void __user *)(tmp.fix_qos), QOS_FIX_BANK_SIZE)) {
-		pr_err("QoS(qos_set_all_qos): copy param error\n");
+		pr_err("QoS(%s): copy param error\n", __func__);
 		ret = -EFAULT;
 		goto err_i1;
 	}
 
 	if (copy_from_user(param.be_qos,
 		(void __user *)(tmp.be_qos), QOS_BE_BANK_SIZE)) {
-		pr_err("QoS(qos_set_all_qos): copy param error\n");
+		pr_err("QoS(%s): copy param error\n", __func__);
 		ret = -EFAULT;
 		goto err_i1;
 	}
 
 	ret = rcar_qos_set_all_qos(&param);
 	if (ret) {
-		pr_err("QoS(qos_set_all_qos): failed to rcar_qos_set_all_qos() errno=[%d]\n",
-			ret);
+		pr_err("QoS(%s): failed to rcar_qos_set_all_qos() errno=[%d]\n",
+		       __func__, ret);
 		goto err_i1;
 	}
 
@@ -319,8 +319,8 @@ static int qos_switch_membank(unsigned long arg)
 
 	ret = rcar_qos_switch_membank();
 	if (ret) {
-		pr_err("QoS(qos_switch_membank): failed to rcar_qos_switch_membank() errno=[%d]\n",
-			ret);
+		pr_err("QoS(%s): failed to rcar_qos_switch_membank() errno=[%d]\n",
+		       __func__, ret);
 		return ret;
 	}
 

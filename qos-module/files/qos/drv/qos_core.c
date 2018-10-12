@@ -88,13 +88,8 @@
 } while (0)
 #endif
 
-
-#define READ_REG8(address)		readb(address)
-#define READ_REG16(address)		readw(address)
 #define READ_REG32(address)		readl(address)
 #define READ_REG64(address)		readq(address)
-#define WRITE_REG8(value, address)	writeb(value, address)
-#define WRITE_REG16(value, address)	writew(value, address)
 #define WRITE_REG32(value, address)	writel(value, address)
 #define WRITE_REG64(value, address)	writeq(value, address)
 
@@ -142,7 +137,7 @@ int rcar_qos_init(void)
 	if (!init) {
 		if (!request_mem_region(
 			QOS_BASE0, QOS_REG_SIZE, QOS_DEVICE_NAME)) {
-			pr_err("rcar_qos_init: request_mem_region[QOS_BASE0] error");
+			pr_err("%s: request_mem_region[QOS_BASE0] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i1;
 		}
@@ -150,7 +145,7 @@ int rcar_qos_init(void)
 		qos_reg_base = ioremap_nocache(QOS_BASE0, QOS_REG_SIZE);
 
 		if (qos_reg_base == NULL) {
-			pr_err("rcar_qos_init: ioremap_nocache[QOS_BASE0] error");
+			pr_err("%s: ioremap_nocache[QOS_BASE0] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i2;
 		}
@@ -160,7 +155,7 @@ int rcar_qos_init(void)
 		pa_memory_bank = QOSCTRL_MEMBANK;
 		if (!request_mem_region(pa_memory_bank, sizeof(__u32),
 							QOS_DEVICE_NAME)) {
-			pr_err("rcar_qos_init: request_mem_region[MEMORY_BANK] error");
+			pr_err("%s: request_mem_region[MEMORY_BANK] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i5;
 		}
@@ -169,7 +164,7 @@ int rcar_qos_init(void)
 								sizeof(__u32));
 
 		if (va_qos_memory_bank == NULL) {
-			pr_err("rcar_qos_init: ioremap_nocache[MEMORY_BANK] error");
+			pr_err("%s: ioremap_nocache[MEMORY_BANK] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i6;
 		}
@@ -179,7 +174,7 @@ int rcar_qos_init(void)
 
 		if (!request_mem_region(
 			PRR_REG_BASE, PRR_REG_SIZE, QOS_DEVICE_NAME)) {
-			pr_err("rcar_qos_init: request_mem_region[PRR_REG_BASE] error");
+			pr_err("%s: request_mem_region[PRR_REG_BASE] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i7;
 		}
@@ -187,7 +182,7 @@ int rcar_qos_init(void)
 		prr_reg_base = ioremap_nocache(PRR_REG_BASE, PRR_REG_SIZE);
 
 		if (prr_reg_base == NULL) {
-			pr_err("rcar_qos_init: ioremap_nocache[PRR_REG_BASE] error");
+			pr_err("%s: ioremap_nocache[PRR_REG_BASE] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i8;
 		}
@@ -251,7 +246,7 @@ int rcar_qos_init(void)
 		if (master_id_max == 0) {
 			device = 0;
 			device_version = 0;
-			pr_err("rcar_qos_init: not support chip\n");
+			pr_err("%s: not support chip\n", __func__);
 			ret = -ENOMEM;
 			goto err_i9;
 		}
