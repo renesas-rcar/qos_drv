@@ -64,6 +64,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
