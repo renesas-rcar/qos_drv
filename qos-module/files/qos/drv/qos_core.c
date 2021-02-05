@@ -142,10 +142,10 @@ int rcar_qos_init(void)
 			goto err_i1;
 		}
 
-		qos_reg_base = ioremap_nocache(QOS_BASE0, QOS_REG_SIZE);
+		qos_reg_base = ioremap(QOS_BASE0, QOS_REG_SIZE);
 
 		if (qos_reg_base == NULL) {
-			pr_err("%s: ioremap_nocache[QOS_BASE0] error\n", __func__);
+			pr_err("%s: ioremap[QOS_BASE0] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i2;
 		}
@@ -160,11 +160,10 @@ int rcar_qos_init(void)
 			goto err_i5;
 		}
 
-		va_qos_memory_bank = ioremap_nocache(pa_memory_bank,
-								sizeof(__u32));
+		va_qos_memory_bank = ioremap(pa_memory_bank, sizeof(__u32));
 
 		if (va_qos_memory_bank == NULL) {
-			pr_err("%s: ioremap_nocache[MEMORY_BANK] error\n", __func__);
+			pr_err("%s: ioremap[MEMORY_BANK] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i6;
 		}
@@ -179,10 +178,10 @@ int rcar_qos_init(void)
 			goto err_i7;
 		}
 
-		prr_reg_base = ioremap_nocache(PRR_REG_BASE, PRR_REG_SIZE);
+		prr_reg_base = ioremap(PRR_REG_BASE, PRR_REG_SIZE);
 
 		if (prr_reg_base == NULL) {
-			pr_err("%s: ioremap_nocache[PRR_REG_BASE] error\n", __func__);
+			pr_err("%s: ioremap[PRR_REG_BASE] error\n", __func__);
 			ret = -ENOMEM;
 			goto err_i8;
 		}
