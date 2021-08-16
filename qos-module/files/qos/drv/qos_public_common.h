@@ -65,7 +65,7 @@
 #include <asm/ioctl.h>
 
 #define QOS_DEVICE_NAME		"qos"
-#define QOS_VERSION		"2.06"
+#define QOS_VERSION		"2.07"
 
 enum {
 	QOS_TYPE_FIX = 0,

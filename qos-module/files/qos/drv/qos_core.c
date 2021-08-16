@@ -1,7 +1,7 @@
 /*************************************************************************/ /*
  qos_core.c
 
- Copyright (C) 2015-2017 Renesas Electronics Corporation
+ Copyright (C) 2015-2021 Renesas Electronics Corporation
 
  License        Dual MIT/GPLv2
 
@@ -238,6 +238,13 @@ int rcar_qos_init(void)
 			case ES10:
 			default:
 				master_id_max = MASTER_ID_MAX_E3;
+				break;
+			}
+		} else if (device == R_CAR_V3U) {
+			switch (device_version) {
+			case ES10:
+			default:
+				master_id_max = MASTER_ID_MAX_V3U;
 				break;
 			}
 		}
