@@ -255,6 +255,13 @@ int rcar_qos_init(void)
 				master_id_max = MASTER_ID_MAX_V3H;
 				break;
 			}
+		} else if (device == R_CAR_V3M) {
+			switch (device_version) {
+			case ES20:
+			default:
+				master_id_max = MASTER_ID_MAX_V3M;
+				break;
+			}
 		}
 
 		if (master_id_max == 0) {
