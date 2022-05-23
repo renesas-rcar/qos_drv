@@ -262,6 +262,20 @@ int rcar_qos_init(void)
 				master_id_max = MASTER_ID_MAX_V3M;
 				break;
 			}
+		} else if (device == R_CAR_V4H) {
+			switch (device_version) {
+			case ES10:
+			default:
+				master_id_max = MASTER_ID_MAX_V4H;
+				break;
+			}
+		} else if (device == R_CAR_S4) {
+			switch (device_version) {
+			case ES10:
+			default:
+				master_id_max = MASTER_ID_MAX_S4;
+				break;
+			}
 		}
 
 		if (master_id_max == 0) {
