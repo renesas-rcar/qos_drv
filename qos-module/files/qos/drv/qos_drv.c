@@ -77,7 +77,7 @@
 
 #ifdef DEBUG
 #define QOS_DBG(fmt, args...) \
-		pr_debug("%s: " fmt "\n", __func__, ##args)
+		printk("%s: " fmt "\n", __func__, ##args)
 #else
 #define QOS_DBG(fmt, args...) do { } while (0)
 #endif
@@ -87,6 +87,8 @@ static int qos_switch_membank(unsigned long arg);
 
 typedef int (*qos_ioctl_t)(unsigned long);
 
+uint32_t qos_base;
+void __iomem *qos_reg_base;
 static struct platform_device *g_qos_pdev;
 
 static const qos_ioctl_t qos_ioctls[QOS_IOCTL_MAX_NR] = {
@@ -171,16 +173,35 @@ static const struct dev_pm_ops qos_pm_ops = {
 
 static int qos_probe(struct platform_device *pdev)
 {
+	int ret = 0;
+	struct resource *mem;
+
 	if (g_qos_pdev != NULL)
 		return -1;
 
 	g_qos_pdev = pdev;
-	return 0;
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		pr_err("Unable to get mem resource\n");
+		return -ENODEV;
+	}
+	qos_base = (uint32_t)mem->start;
+	QOS_DBG("Physical address of QoS device defined in DT = 0x%08x", qos_base);
+
+	qos_reg_base = devm_ioremap_resource(&pdev->dev, mem);
+    if (IS_ERR(qos_reg_base)) {
+		pr_err("Unable to map regs\n");
+		return PTR_ERR(qos_reg_base);
+    }
+
+	return ret;
 }
 
 static int qos_remove(struct platform_device *pdev)
 {
 	g_qos_pdev = NULL;
+	qos_reg_base = NULL;
 	return 0;
 }
 
@@ -207,12 +228,6 @@ static int __init qos_init(void)
 
 	pr_info("QoS: install v%s\n", QOS_VERSION);
 
-	ret = rcar_qos_init();
-	if (ret) {
-		pr_err("failed to rcar_qos_init()\n");
-		return ret;
-	}
-
 	platform_driver_register(&qos_driver);
 	if (g_qos_pdev == NULL) {
 		platform_driver_unregister(&qos_driver);
@@ -223,6 +238,12 @@ static int __init qos_init(void)
 	ret = misc_register(&qos_miscdev);
 	if (ret) {
 		pr_err("failed to misc_register (MISC_DYNAMIC_MINOR)\n");
+		return ret;
+	}
+
+	ret = rcar_qos_init();
+	if (ret) {
+		pr_err("failed to rcar_qos_init()\n");
 		return ret;
 	}
 

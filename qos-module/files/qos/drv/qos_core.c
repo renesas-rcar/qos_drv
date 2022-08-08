@@ -64,6 +64,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 
 #include "qos_core.h"
 #include "qos_reg.h"
@@ -72,7 +73,7 @@
 
 #ifdef DEBUG
 #define QOS_DBG(fmt, args...) \
-		pr_debug("%s: " fmt "\n", __func__, ##args)
+		printk("%s: " fmt "\n", __func__, ##args)
 #else
 #define QOS_DBG(fmt, args...) do { } while (0)
 #endif
@@ -95,8 +96,8 @@
 
 #define QOS_BANK_OFF(__index) (QOS_BANK_SIZE * (__index))
 
-static void __iomem *qos_reg_base;
-static void __iomem *va_qos_memory_bank;
+extern uint32_t qos_base;				// Physical address of QoS module
+extern void __iomem *qos_reg_base;		// Vitural address of QoS module
 
 static DEFINE_MUTEX(qos_mutex);
 
@@ -116,97 +117,57 @@ static __u8 backup_bank[QOS_REG_SIZE];
 #define WAIT_SWITCH_BANK_US	(10)
 #define WAIT_RETRY_COUNT		(5)
 
-
 static inline void qos_reg_load(void *src, __u32 offset, int index);
 static inline void qos_reg_store(void *dst, __u32 offset, int index);
 static int rcar_qos_wait_switching(__u32 value);
 
 int rcar_qos_init(void)
 {
-	__u32		pa_memory_bank;
-
 	int ret = 0;
 
 	__u32 prr;
-	void __iomem *prr_reg_base;
+	struct device_node *np;
+	void __iomem *prr_reg_base = NULL;
 
 	QOS_DBG("begin");
 
 	mutex_lock(&qos_mutex);
 
 	if (!init) {
-		if (!request_mem_region(
-			QOS_BASE0, QOS_REG_SIZE, QOS_DEVICE_NAME)) {
-			pr_err("%s: request_mem_region[QOS_BASE0] error\n", __func__);
+        /* Try PRR first, then hardcoded fallback */
+        np = of_find_compatible_node(NULL, NULL, "renesas,prr");
+        if (np) {
+			prr_reg_base = of_iomap(np, 0);
+			of_node_put(np);
+
+			if (prr_reg_base) {
+				prr = readl(prr_reg_base);
+				iounmap(prr_reg_base);
+				device = prr & PRODUCT_ID_NUMBER_MASK;
+				device_version = prr & CUT_NUMBER_MASK;
+
+				QOS_DBG(
+				"Succeeded to get device model[0x%08x],device version[0x%08x]",
+					device, device_version);
+			}
+        } else {
+			pr_err("%s: of_find_compatible_node[renesas,prr] error\n", __func__);
 			ret = -ENOMEM;
-			goto err_i1;
 		}
-
-		qos_reg_base = ioremap(QOS_BASE0, QOS_REG_SIZE);
-
-		if (qos_reg_base == NULL) {
-			pr_err("%s: ioremap[QOS_BASE0] error\n", __func__);
-			ret = -ENOMEM;
-			goto err_i2;
-		}
-
-		QOS_DBG("Succeeded to map qos_reg_base[%p]", qos_reg_base);
-
-		pa_memory_bank = QOSCTRL_MEMBANK;
-		if (!request_mem_region(pa_memory_bank, sizeof(__u32),
-							QOS_DEVICE_NAME)) {
-			pr_err("%s: request_mem_region[MEMORY_BANK] error\n", __func__);
-			ret = -ENOMEM;
-			goto err_i5;
-		}
-
-		va_qos_memory_bank = ioremap(pa_memory_bank, sizeof(__u32));
-
-		if (va_qos_memory_bank == NULL) {
-			pr_err("%s: ioremap[MEMORY_BANK] error\n", __func__);
-			ret = -ENOMEM;
-			goto err_i6;
-		}
-
-		QOS_DBG("Succeeded to map va_qos_memory_bank[%p]",
-						va_qos_memory_bank);
-
-		if (!request_mem_region(
-			PRR_REG_BASE, PRR_REG_SIZE, QOS_DEVICE_NAME)) {
-			pr_err("%s: request_mem_region[PRR_REG_BASE] error\n", __func__);
-			ret = -ENOMEM;
-			goto err_i7;
-		}
-
-		prr_reg_base = ioremap(PRR_REG_BASE, PRR_REG_SIZE);
-
-		if (prr_reg_base == NULL) {
-			pr_err("%s: ioremap[PRR_REG_BASE] error\n", __func__);
-			ret = -ENOMEM;
-			goto err_i8;
-		}
-
-		prr = READ_REG32(prr_reg_base + PRR);
-
-		QOS_DBG("Succeeded to map prr_reg_base[%p]", prr_reg_base);
-
-		QOS_DBG("Read Reg[prr_reg_base + PRR][%p], value[0x%08x]",
-			prr_reg_base + PRR, prr);
-		device = prr & PRODUCT_ID_NUMBER_MASK;
-		device_version = prr & CUT_NUMBER_MASK;
-
-		QOS_DBG(
-		"Succeeded to get device model[0x%08x],device version[0x%08x]",
-			device, device_version);
 
 		if (device == R_CAR_H3) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car H3 Ver.1.0\"\r\n");
+				fallthrough;
 			case ES11:
+				pr_info("Device \"R-Car H3 Ver1.1\"\r\n");
 				master_id_max = MASTER_ID_MAX_H3_ES1;
 				support_exe_membank = false;
 				break;
 			case ES20:
+				pr_info("Device \"R-Car H3 Ver2.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_H3_ES2;
 				break;
@@ -214,7 +175,11 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_M3_W) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car M3 Ver1.0\"\r\n");
+				fallthrough;
 			case ES20: /* Ver1.1 */
+				pr_info("Device \"R-Car M3 Ver1.1\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_M3_W;
 				break;
@@ -222,6 +187,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_M3_N) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car M3N Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_M3_N;
 				break;
@@ -229,6 +196,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_D3) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car D3 Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_D3;
 				break;
@@ -236,6 +205,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_E3) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car E3 Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_E3;
 				break;
@@ -243,6 +214,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_V3U) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car V3U Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V3U;
 				break;
@@ -250,7 +223,11 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_V3H) {
 			switch (device_version) {
 			case ES11:
+				pr_info("Device \"R-Car V3H Ver1.1\"\r\n");
+				fallthrough;
 			case ES20:
+				pr_info("Device \"R-Car V3H Ver2.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V3H;
 				break;
@@ -258,6 +235,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_V3M) {
 			switch (device_version) {
 			case ES20:
+				pr_info("Device \"R-Car V3M Ver2.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V3M;
 				break;
@@ -265,6 +244,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_V4H) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car V4H Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V4H;
 				break;
@@ -272,6 +253,8 @@ int rcar_qos_init(void)
 		} else if (device == R_CAR_S4) {
 			switch (device_version) {
 			case ES10:
+				pr_info("Device \"R-Car S4 Ver1.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_S4;
 				break;
@@ -283,13 +266,8 @@ int rcar_qos_init(void)
 			device_version = 0;
 			pr_err("%s: not support chip\n", __func__);
 			ret = -ENOMEM;
-			goto err_i9;
 		}
-
 		QOS_DBG("Number of master id[%u]", master_id_max);
-
-		release_mem_region(PRR_REG_BASE, PRR_REG_SIZE);
-		iounmap(prr_reg_base);
 
 		init = 1;
 	}
@@ -300,24 +278,6 @@ int rcar_qos_init(void)
 
 	return ret;
 
-err_i9:
-	iounmap(prr_reg_base);
-err_i8:
-	release_mem_region(PRR_REG_BASE, PRR_REG_SIZE);
-err_i7:
-	iounmap(va_qos_memory_bank);
-err_i6:
-	release_mem_region(pa_memory_bank, sizeof(__u32));
-err_i5:
-	iounmap(qos_reg_base);
-err_i2:
-	release_mem_region(QOS_BASE0, QOS_REG_SIZE);
-err_i1:
-	mutex_unlock(&qos_mutex);
-
-	QOS_DBG("end");
-
-	return ret;
 }
 
 void rcar_qos_exit(void)
@@ -332,15 +292,6 @@ void rcar_qos_exit(void)
 		device = 0;
 		device_version = 0;
 		master_id_max = 0;
-
-		iounmap(va_qos_memory_bank);
-		release_mem_region(QOSCTRL_MEMBANK,
-					sizeof(__u32));
-		va_qos_memory_bank = NULL;
-		iounmap(qos_reg_base);
-		release_mem_region(QOS_BASE0, QOS_REG_SIZE);
-		qos_reg_base = NULL;
-
 		init = 0;
 	}
 
@@ -363,11 +314,11 @@ int rcar_qos_set_all_qos(struct qos_ioc_set_all_qos_param *param)
 	if (!support_exe_membank) {
 		exe_membank = exe_membank_bk;
 	} else {
-		QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
-						va_qos_memory_bank,
-						READ_REG32(va_qos_memory_bank));
+		QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][0x%08x], value[0x%08x]",
+						(qos_base + QOSCTRL_MEMBANK),
+						READ_REG32(qos_reg_base + QOSCTRL_MEMBANK));
 
-		exe_membank = (READ_REG32(va_qos_memory_bank)
+		exe_membank = (READ_REG32(qos_reg_base + QOSCTRL_MEMBANK)
 						& EXE_MEMBANK_MASK) >> 8;
 	}
 
@@ -407,9 +358,9 @@ int rcar_qos_switch_membank(void)
 
 	mutex_lock(&qos_mutex);
 
-	memory_bank = READ_REG32(va_qos_memory_bank);
-	QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]",
-					va_qos_memory_bank, memory_bank);
+	memory_bank = READ_REG32(qos_reg_base + QOSCTRL_MEMBANK);
+	QOS_DBG("Read Reg[QOS_REG_TYPE_MEMORY_BANK][0x%08x], value[0x%08x]",
+					(qos_base + QOSCTRL_MEMBANK), memory_bank);
 
 	if (!support_exe_membank)
 		exe_membank = exe_membank_bk;
@@ -553,6 +504,9 @@ void rcar_qos_resume(void)
 
 static inline void qos_reg_load(void *src, __u32 offset, int index)
 {
+	/* QOS_DBG("[%d] Write value 0x%016llx to IP address 0x%08x\n", index, \
+		*((__u64 *)(src + QOS_BANK_OFF(index))), \
+		(qos_base + offset + QOS_BANK_OFF(index))); */
 	WRITE_REG64(*((__u64 *)(src + QOS_BANK_OFF(index))),
 		qos_reg_base + offset + QOS_BANK_OFF(index));
 }
@@ -561,15 +515,18 @@ static inline void qos_reg_store(void *dst, __u32 offset, int index)
 {
 	*((__u64 *)(dst + QOS_BANK_OFF(index))) =
 		READ_REG64(qos_reg_base + offset + QOS_BANK_OFF(index));
+	/* QOS_DBG("[%d] Store value 0x%016llx of IP address 0x%08x\n", index, \
+		*((__u64 *)(dst + QOS_BANK_OFF(index))), \
+		(qos_base + offset + QOS_BANK_OFF(index))); */
 }
 
 static int rcar_qos_wait_switching(__u32 value)
 {
 	int ret = 0;
 
-	QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][%p], value[0x%08x]\n",
-						va_qos_memory_bank, value);
-	WRITE_REG32(value, va_qos_memory_bank);
+	QOS_DBG("Write Reg[QOS_REG_TYPE_MEMORY_BANK][0x%08x], value[0x%08x]\n",
+						(qos_base + QOSCTRL_MEMBANK), value);
+	WRITE_REG32(value, qos_reg_base + QOSCTRL_MEMBANK);
 
 	if (!support_exe_membank) {
 		usleep_range(WAIT_SWITCH_BANK_US_MIN,
@@ -579,7 +536,7 @@ static int rcar_qos_wait_switching(__u32 value)
 		__u32 memory_bank;
 
 		while (timeout--) {
-			memory_bank = READ_REG32(va_qos_memory_bank);
+			memory_bank = READ_REG32(qos_reg_base + QOSCTRL_MEMBANK);
 			if (((memory_bank & EXE_MEMBANK_MASK) >> 8)
 						== (memory_bank & 0x00000001)) {
 				break;
