@@ -91,6 +91,8 @@
 #define PRR_REG_SIZE			(0x00000048U)
 #define PRR				        (0x00000044U)
 
+#define S4N_IDENTIFIER		(0xE6078940U)
+
 #define PRODUCT_ID_NUMBER_MASK  (0x00007F00U)
 #define CUT_NUMBER_MASK			(0x000000FFU)
 
@@ -107,7 +109,11 @@
 
 #define ES10				(0x00000000U)
 #define ES11				(0x00000001U)
+#define ES12				(0x00000002U)
+
 #define ES20				(0x00000010U)
+#define ES21				(0x00000011U)
+
 #define ES30				(0x00000020U)
 
 #endif /* __QOS_REG_H__ */

@@ -125,9 +125,10 @@ int rcar_qos_init(void)
 {
 	int ret = 0;
 
-	__u32 prr;
+	__u32 prr, s4n_identifier;
 	struct device_node *np;
 	void __iomem *prr_reg_base = NULL;
+	void __iomem *s4n_identifier_reg = NULL;
 
 	QOS_DBG("begin");
 
@@ -249,22 +250,47 @@ int rcar_qos_init(void)
 			case ES20:
 				pr_info("Device \"R-Car V4H Ver2.0\"\r\n");
 				fallthrough;
+			case ES21:
+				pr_info("Device \"R-Car V4H Ver2.1\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V4H;
 				break;
 			}
 		} else if (device == R_CAR_S4) {
-			switch (device_version) {
-			case ES10:
-				pr_info("Device \"R-Car S4 Ver1.0\"\r\n");
-				fallthrough;
-			case ES11:
-				pr_info("Device \"R-Car S4 Ver1.1\"\r\n");
-				fallthrough;
-			default:
-				master_id_max = MASTER_ID_MAX_S4;
-				break;
-			}
+			s4n_identifier_reg = ioremap(S4N_IDENTIFIER, sizeof(uint32_t));
+			s4n_identifier = readl(s4n_identifier_reg) & 0x00000001;
+			iounmap((void *)s4n_identifier_reg);
+			if (s4n_identifier)
+				switch (device_version) {
+				case ES10:
+					pr_info("Device \"R-Car S4N Ver1.0\"\r\n");
+					fallthrough;
+				case ES11:
+					pr_info("Device \"R-Car S4N Ver1.1\"\r\n");
+					fallthrough;
+				case ES12:
+					pr_info("Device \"R-Car S4N Ver1.2\"\r\n");
+					fallthrough;
+				default:
+					master_id_max = MASTER_ID_MAX_S4;
+					break;
+				}
+			else
+				switch (device_version) {
+				case ES10:
+					pr_info("Device \"R-Car S4 Ver1.0\"\r\n");
+					fallthrough;
+				case ES11:
+					pr_info("Device \"R-Car S4 Ver1.1\"\r\n");
+					fallthrough;
+				case ES12:
+					pr_info("Device \"R-Car S4 Ver1.2\"\r\n");
+					fallthrough;
+				default:
+					master_id_max = MASTER_ID_MAX_S4;
+					break;
+				}
 		}
 
 		if (master_id_max == 0) {
