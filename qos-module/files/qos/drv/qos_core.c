@@ -291,6 +291,15 @@ int rcar_qos_init(void)
 					master_id_max = MASTER_ID_MAX_S4;
 					break;
 				}
+		} else if (device == R_CAR_V4M) {
+			switch (device_version) {
+			case ES10:
+				pr_info("Device \"R-Car V4M Ver1.0\"\r\n");
+				fallthrough;
+			default:
+				master_id_max = MASTER_ID_MAX_V4M;
+				break;
+			}
 		}
 
 		if (master_id_max == 0) {
