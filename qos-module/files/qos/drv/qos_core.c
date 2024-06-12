@@ -253,6 +253,9 @@ int rcar_qos_init(void)
 			case ES21:
 				pr_info("Device \"R-Car V4H Ver2.1\"\r\n");
 				fallthrough;
+			case ES30:
+				pr_info("Device \"R-Car V4H Ver3.0\"\r\n");
+				fallthrough;
 			default:
 				master_id_max = MASTER_ID_MAX_V4H;
 				break;
@@ -286,6 +289,9 @@ int rcar_qos_init(void)
 					fallthrough;
 				case ES12:
 					pr_info("Device \"R-Car S4 Ver1.2\"\r\n");
+					fallthrough;
+				case ES20:
+					pr_info("Device \"R-Car S4 Ver2.0\"\r\n");
 					fallthrough;
 				default:
 					master_id_max = MASTER_ID_MAX_S4;
