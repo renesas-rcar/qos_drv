@@ -115,6 +115,7 @@
 
 #define ES20				(0x00000010U)
 #define ES21				(0x00000011U)
+#define ES22				(0x00000012U)
 
 #define ES30				(0x00000020U)
 

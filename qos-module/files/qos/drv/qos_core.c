@@ -253,6 +253,9 @@ int rcar_qos_init(void)
 			case ES21:
 				pr_info("Device \"R-Car V4H Ver2.1\"\r\n");
 				fallthrough;
+			case ES22:
+				pr_info("Device \"R-Car V4H Ver2.2\"\r\n");
+				fallthrough;
 			case ES30:
 				pr_info("Device \"R-Car V4H Ver3.0\"\r\n");
 				fallthrough;
