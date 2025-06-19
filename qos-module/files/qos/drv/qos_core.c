@@ -125,10 +125,11 @@ int rcar_qos_init(void)
 {
 	int ret = 0;
 
-	__u32 prr, s4n_identifier;
+	__u32 prr, s4n_identifier, m3le_identifier;
 	struct device_node *np;
 	void __iomem *prr_reg_base = NULL;
 	void __iomem *s4n_identifier_reg = NULL;
+	void __iomem *m3le_identifier_reg = NULL;
 
 	QOS_DBG("begin");
 
@@ -186,14 +187,27 @@ int rcar_qos_init(void)
 				break;
 			}
 		} else if (device == R_CAR_M3_N) {
-			switch (device_version) {
-			case ES10:
-				pr_info("Device \"R-Car M3N Ver1.0\"\r\n");
-				fallthrough;
-			default:
-				master_id_max = MASTER_ID_MAX_M3_N;
-				break;
-			}
+			m3le_identifier_reg = ioremap(M3LE_IDENTIFIER_ADDR, sizeof(uint32_t));
+			m3le_identifier = readl(m3le_identifier_reg);
+			iounmap((void *)m3le_identifier_reg);
+			if (m3le_identifier)
+				switch (device_version) {
+				case ES11:
+					pr_info("Device \"R-Car M3Le Ver1.1\"\r\n");
+					fallthrough;
+				default:
+					master_id_max = MASTER_ID_MAX_M3LE;
+					break;
+				}
+			else
+				switch (device_version) {
+				case ES10:
+					pr_info("Device \"R-Car M3N Ver1.0\"\r\n");
+					fallthrough;
+				default:
+					master_id_max = MASTER_ID_MAX_M3_N;
+					break;
+				}
 		} else if (device == R_CAR_D3) {
 			switch (device_version) {
 			case ES10:
